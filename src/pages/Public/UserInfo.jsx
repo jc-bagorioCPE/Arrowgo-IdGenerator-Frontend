@@ -30,59 +30,51 @@ import {
   AlertCircle,
   PenTool,
 } from "lucide-react";
-import CameraGuide from "../../components/CameraGuide";
 import axios from "axios";
 
-
-/* ================= MAIN COMPONENT ================= */
 export default function UserInfo() {
   const { id } = useParams();
-  const [employee, setEmployee] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [photo, setPhoto] = useState(null);
-  const [signature, setSignature] = useState(null);
-  const [drawing, setDrawing] = useState(false);
-  const [showPhotoDialog, setShowPhotoDialog] = useState(false);
+
+  const [employee,            setEmployee]            = useState(null);
+  const [loading,             setLoading]             = useState(true);
+  const [saving,              setSaving]              = useState(false);
+  const [saved,               setSaved]               = useState(false);
+  const [photo,               setPhoto]               = useState(null);
+  const [signature,           setSignature]           = useState(null);
+  const [drawing,             setDrawing]             = useState(false);
+  const [hasDrawn,            setHasDrawn]            = useState(false);
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
-  const [showCameraGuide, setShowCameraGuide] = useState(false);
-  const sigRef = useRef(null);
+
+  const sigRef         = useRef(null);
   const uploadInputRef = useRef(null);
+  const api            = import.meta.env.VITE_API_BASE_URL;
 
-  const api = import.meta.env.VITE_API_BASE_URL;
-
+  // ── Fetch employee data ────────────────────────────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${api}/api/employees/${id}`);
+        const res  = await axios.get(`${api}/api/employees/${id}`);
         const data = res.data;
-        if (!data?.employeeId) {
-          setEmployee(null);
-          return;
-        }
+
+        if (!data?.employeeId) { setEmployee(null); return; }
         setEmployee(data);
-        let hasPhoto = false;
+
+        let hasPhoto     = false;
         let hasSignature = false;
+
         try {
-          const photoRes = await axios.get(`${api}/api/employees/${id}/photo`, {
-            responseType: "blob",
-          });
+          const photoRes = await axios.get(`${api}/api/employees/${id}/photo`, { responseType: "blob" });
           setPhoto(URL.createObjectURL(photoRes.data));
           hasPhoto = true;
-        } catch (err) {
-          console.log("No photo found");
-        }
+        } catch { console.log("No photo found"); }
+
         try {
-          const sigRes = await axios.get(`${api}/api/employees/${id}/signature`, {
-            responseType: "blob",
-          });
+          const sigRes = await axios.get(`${api}/api/employees/${id}/signature`, { responseType: "blob" });
           setSignature(URL.createObjectURL(sigRes.data));
           hasSignature = true;
-        } catch (err) {
-          console.log("No signature found");
-        }
+        } catch { console.log("No signature found"); }
+
         setSaved(hasPhoto && hasSignature);
       } catch (err) {
         console.error("Fetch error:", err);
@@ -91,9 +83,32 @@ export default function UserInfo() {
         setLoading(false);
       }
     };
+
     fetchData();
   }, [id]);
 
+  // ── Reset canvas when dialog opens ────────────────────────────────────────
+  useEffect(() => {
+    if (showSignatureDialog) {
+      setHasDrawn(false);
+      // Small delay to ensure canvas is mounted
+      setTimeout(() => {
+        if (sigRef.current) {
+          const ctx = sigRef.current.getContext("2d");
+          ctx.clearRect(0, 0, sigRef.current.width, sigRef.current.height);
+          // If there's an existing signature (not a blob URL), draw it on canvas
+          if (signature && signature.startsWith("data:")) {
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0, sigRef.current.width, sigRef.current.height);
+            img.src = signature;
+            setHasDrawn(true);
+          }
+        }
+      }, 50);
+    }
+  }, [showSignatureDialog]);
+
+  // ── Photo handler ──────────────────────────────────────────────────────────
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -102,73 +117,94 @@ export default function UserInfo() {
     reader.readAsDataURL(file);
   };
 
-  const handleCameraCapture = (photoData) => {
-    setPhoto(photoData);
-    setShowCameraGuide(false);
-  };
-
-  const handleCameraCancel = () => {
-    setShowCameraGuide(false);
-  };
-
+  // ── Signature handlers ─────────────────────────────────────────────────────
   const getPos = (e) => {
     const canvas = sigRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
+    const rect   = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / rect.width;
     const scaleY = canvas.height / rect.height;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
-    return { x, y };
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
   };
 
   const startDraw = (e) => {
     e.preventDefault();
     const ctx = sigRef.current.getContext("2d");
     ctx.strokeStyle = "#111";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
+    ctx.lineWidth   = 2;
+    ctx.lineCap     = "round";
     const { x, y } = getPos(e);
     ctx.beginPath();
     ctx.moveTo(x, y);
     setDrawing(true);
+    setHasDrawn(true);
   };
 
   const draw = (e) => {
     e.preventDefault();
     if (!drawing) return;
-    const ctx = sigRef.current.getContext("2d");
+    const ctx   = sigRef.current.getContext("2d");
     const { x, y } = getPos(e);
     ctx.lineTo(x, y);
     ctx.stroke();
   };
 
-  const stopDraw = () => {
+  const stopDraw = (e) => {
+    e?.preventDefault();
     if (!drawing) return;
     setDrawing(false);
-    setSignature(sigRef.current.toDataURL("image/png"));
   };
 
   const clearSignature = () => {
     const canvas = sigRef.current;
     canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-    setSignature(null);
+    setHasDrawn(false);
   };
 
   const uploadSignature = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => setSignature(reader.result);
+    reader.onloadend = () => {
+      const dataUrl = reader.result;
+      // Draw uploaded image onto canvas
+      if (sigRef.current) {
+        const ctx = sigRef.current.getContext("2d");
+        ctx.clearRect(0, 0, sigRef.current.width, sigRef.current.height);
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, sigRef.current.width, sigRef.current.height);
+          setHasDrawn(true);
+        };
+        img.src = dataUrl;
+      }
+    };
     reader.readAsDataURL(file);
+  };
+
+  // ── Done: capture canvas and close dialog ─────────────────────────────────
+  const handleSignatureDone = () => {
+    if (sigRef.current && hasDrawn) {
+      // Check canvas is not blank
+      const canvas  = sigRef.current;
+      const blank   = document.createElement("canvas");
+      blank.width   = canvas.width;
+      blank.height  = canvas.height;
+      const dataUrl = canvas.toDataURL("image/png");
+
+      if (dataUrl !== blank.toDataURL()) {
+        setSignature(dataUrl);
+      }
+    }
+    setShowSignatureDialog(false);
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
       await axios.put(`${api}/api/employees/${id}/media`, {
-        photoBase64: photo,
+        photoBase64:     photo,
         signatureBase64: signature,
       });
       alert("Photo & Signature saved successfully!");
@@ -181,6 +217,7 @@ export default function UserInfo() {
     }
   };
 
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
@@ -193,6 +230,7 @@ export default function UserInfo() {
     );
   }
 
+  // ── Not found ──────────────────────────────────────────────────────────────
   if (!employee) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
@@ -200,7 +238,9 @@ export default function UserInfo() {
           <CardContent className="p-6 sm:p-8 text-center">
             <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">User Not Found</h2>
-            <p className="text-sm sm:text-base text-gray-600">The requested employee information could not be found.</p>
+            <p className="text-sm sm:text-base text-gray-600">
+              The requested employee information could not be found.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -210,28 +250,28 @@ export default function UserInfo() {
   const infoSections = [
     {
       title: "Employee Information",
-      icon: User,
+      icon:  User,
       items: [
-        { label: "Position", value: employee.position, icon: Briefcase },
-        { label: "Contact Person", value: employee.contactPerson, icon: Users },
-        { label: "Contact Number", value: employee.contactNumber, icon: Phone },
+        { label: "Position",       value: employee.position,      icon: Briefcase },
+        { label: "Contact Person", value: employee.contactPerson, icon: Users     },
+        { label: "Contact Number", value: employee.contactNumber, icon: Phone     },
       ],
     },
     {
       title: "Government IDs",
-      icon: FileText,
+      icon:  FileText,
       items: [
-        { label: "PhilHealth", value: employee.philhealth, icon: Heart },
-        { label: "SSS", value: employee.sss, icon: CreditCard },
-        { label: "Pag-IBIG", value: employee.pagibig, icon: Home },
-        { label: "TIN", value: employee.tin, icon: FileText },
+        { label: "PhilHealth", value: employee.philhealth, icon: Heart      },
+        { label: "SSS",        value: employee.sss,        icon: CreditCard },
+        { label: "Pag-IBIG",   value: employee.pagibig,   icon: Home       },
+        { label: "TIN",        value: employee.tin,        icon: FileText   },
       ],
     },
   ];
 
+  // ── Main render ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 sm:p-6">
-      {/* Background decorative elements - hidden on mobile for performance */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none hidden sm:block">
         <div className="absolute top-20 left-20 w-72 h-72 bg-blue-200 rounded-full filter blur-3xl opacity-20" />
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-200 rounded-full filter blur-3xl opacity-20" />
@@ -246,7 +286,9 @@ export default function UserInfo() {
         >
           <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm px-4 sm:px-5 py-2 sm:py-2.5 rounded-full mb-3 sm:mb-4 shadow-lg border border-blue-200">
             <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-            <span className="text-xs sm:text-sm font-bold text-blue-700 tracking-wide">EMPLOYEE PROFILE</span>
+            <span className="text-xs sm:text-sm font-bold text-blue-700 tracking-wide">
+              EMPLOYEE PROFILE
+            </span>
           </div>
           {saved && (
             <motion.div
@@ -266,15 +308,12 @@ export default function UserInfo() {
           transition={{ delay: 0.2 }}
         >
           <Card className="shadow-xl sm:shadow-2xl border-2 border-blue-200 rounded-2xl sm:rounded-3xl overflow-hidden">
-            {/* Header gradient - reduced height on mobile */}
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-20 sm:h-32" />
-            
+
             <CardContent className="p-4 sm:p-8 -mt-12 sm:-mt-16">
-              {/* Mobile: Single column stack */}
-              {/* Desktop: 3-column grid */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8">
-                
-                {/* Profile Photo Section */}
+
+                {/* Profile Photo */}
                 <div className="lg:col-span-3">
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
@@ -294,7 +333,7 @@ export default function UserInfo() {
                       </div>
                       {!saved && (
                         <button
-                          onClick={() => setShowPhotoDialog(true)}
+                          onClick={() => uploadInputRef.current?.click()}
                           className="absolute bottom-0 right-0 w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-full flex items-center justify-center shadow-lg transition-all"
                           aria-label="Add photo"
                         >
@@ -302,6 +341,7 @@ export default function UserInfo() {
                         </button>
                       )}
                     </div>
+
                     <h2 className="mt-3 sm:mt-4 text-xl sm:text-2xl font-bold text-gray-800 px-2">
                       {employee.employeeName}
                     </h2>
@@ -311,7 +351,9 @@ export default function UserInfo() {
                       </p>
                     </div>
                     <div className={`mt-3 sm:mt-4 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl flex items-center gap-2 ${
-                      saved ? "bg-green-100 border border-green-300" : "bg-yellow-100 border border-yellow-300"
+                      saved
+                        ? "bg-green-100 border border-green-300"
+                        : "bg-yellow-100 border border-yellow-300"
                     }`}>
                       {saved ? (
                         <>
@@ -382,7 +424,9 @@ export default function UserInfo() {
                       <div
                         onClick={() => !saved && setShowSignatureDialog(true)}
                         className={`relative border-2 rounded-lg sm:rounded-xl p-3 sm:p-4 bg-white transition-all ${
-                          !saved ? "cursor-pointer hover:border-purple-400 active:border-purple-500 hover:shadow-lg" : "border-gray-200"
+                          !saved
+                            ? "cursor-pointer hover:border-purple-400 active:border-purple-500 hover:shadow-lg"
+                            : "border-gray-200"
                         }`}
                       >
                         {signature ? (
@@ -407,7 +451,7 @@ export default function UserInfo() {
                     {!saved && (
                       <motion.div whileTap={{ scale: 0.98 }}>
                         <Button
-                          className="w-full h-12 sm:h-14 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 active:from-green-800 active:to-emerald-800 text-white font-bold rounded-xl shadow-lg hover:shadow-xl flex items-center justify-center gap-2 sm:gap-3 text-sm sm:text-base"
+                          className="w-full h-12 sm:h-14 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 active:from-green-800 active:to-emerald-800 text-white font-bold rounded-xl shadow-lg hover:shadow-xl flex items-center justify-center gap-2 sm:gap-3 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={handleSave}
                           disabled={!photo || !signature || saving}
                         >
@@ -423,53 +467,27 @@ export default function UserInfo() {
                             </>
                           )}
                         </Button>
+
+                        {/* Helper text showing what's still needed */}
+                        {(!photo || !signature) && (
+                          <p className="text-xs text-center text-gray-500 mt-2">
+                            {!photo && !signature
+                              ? "Photo and signature required"
+                              : !photo
+                              ? "Photo required"
+                              : "Signature required"}
+                          </p>
+                        )}
                       </motion.div>
                     )}
                   </motion.div>
                 </div>
+
               </div>
             </CardContent>
           </Card>
         </motion.div>
       </div>
-
-      {/* Photo Dialog */}
-      <Dialog open={showPhotoDialog} onOpenChange={setShowPhotoDialog}>
-        <DialogContent className="sm:max-w-md w-[calc(100%-2rem)] rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
-              Add Photo
-            </DialogTitle>
-            <DialogDescription className="text-sm sm:text-base">
-              Choose how you'd like to add your photo
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 pt-4">
-            <Button
-              onClick={() => {
-                setShowPhotoDialog(false);
-                setShowCameraGuide(true);
-              }}
-              className="h-12 sm:h-14 text-base sm:text-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 flex items-center gap-2 sm:gap-3"
-            >
-              <Camera className="h-5 w-5" />
-              Use Camera
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowPhotoDialog(false);
-                setTimeout(() => uploadInputRef.current?.click(), 200);
-              }}
-              className="h-12 sm:h-14 text-base sm:text-lg border-2 flex items-center gap-2 sm:gap-3"
-            >
-              <Upload className="h-5 w-5" />
-              Upload Photo
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Signature Dialog */}
       <Dialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog}>
@@ -496,7 +514,7 @@ export default function UserInfo() {
               onTouchStart={startDraw}
               onTouchMove={draw}
               onTouchEnd={stopDraw}
-              style={{ touchAction: 'none' }}
+              style={{ touchAction: "none" }}
             />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 pt-4">
@@ -511,16 +529,12 @@ export default function UserInfo() {
             <label className="flex items-center gap-2 px-3 sm:px-4 py-2 border-2 rounded-lg cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors h-10 sm:h-auto text-sm sm:text-base">
               <Upload className="h-4 w-4" />
               <span className="font-medium">Upload</span>
-              <input
-                hidden
-                type="file"
-                accept="image/*"
-                onChange={uploadSignature}
-              />
+              <input hidden type="file" accept="image/*" onChange={uploadSignature} />
             </label>
             <Button
-              onClick={() => setShowSignatureDialog(false)}
-              className="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 flex items-center gap-2 h-10 sm:h-auto px-3 sm:px-4 text-sm sm:text-base"
+              onClick={handleSignatureDone}
+              disabled={!hasDrawn}
+              className="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 flex items-center gap-2 h-10 sm:h-auto px-3 sm:px-4 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check className="h-4 w-4" />
               Done
@@ -529,15 +543,7 @@ export default function UserInfo() {
         </DialogContent>
       </Dialog>
 
-      {/* Camera Guide */}
-      {showCameraGuide && (
-        <CameraGuide
-          onCapture={handleCameraCapture}
-          onCancel={handleCameraCancel}
-        />
-      )}
-
-      {/* Hidden file input */}
+      {/* Hidden file input for photo */}
       <input
         ref={uploadInputRef}
         type="file"

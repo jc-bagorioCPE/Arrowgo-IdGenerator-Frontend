@@ -11,7 +11,7 @@ import IDBack from "../../components/IDBack";
 import ID_Form_Front from "../../components/ID_Form_Front";
 import ID_Form_Back from "../../components/ID_Form_Back";
 
-import TemplateFront from "../../assets/NewIDFront.png";
+import TemplateFront from "../../assets/NewIDFront1.png";
 import TemplateBack from "../../assets/NewIDBack.png";
 // JSZip & file-saver no longer needed — removed
 import {

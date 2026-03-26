@@ -1,5 +1,5 @@
 import { useState } from "react";
-import front from "../assets/front1.png";
+import front from "../assets/arrow1.png";
 
 function IdFront({
   employeeName,
@@ -86,7 +86,7 @@ function IdFront({
             width: signatureStyle.width,
             height: signatureStyle.height,
             pointerEvents: "none",
-            top: "375px",
+            top: "395px",
             left: "50%",
             transform: "translateX(-50%)",
             objectFit: "contain",
@@ -97,7 +97,7 @@ function IdFront({
       {/* 👤 Employee Name */}
       <div
         className="absolute left-1/2 -translate-x-1/2 w-[86%] text-center text-black font-bold tracking-wide uppercase"
-        style={{ top: "412px", fontSize: "16px" }}
+        style={{ top: "430px", fontSize: "16px" }}
       >
         {employeeName}
       </div>
@@ -105,7 +105,7 @@ function IdFront({
       {/* 📌 Position */}
       <div
         className="absolute left-1/2 -translate-x-1/2 w-[70%] text-center text-black font-bold"
-        style={{ top: "435px", fontSize: "12px" }}
+        style={{ top: "453px", fontSize: "12px" }}
       >
         {position}
       </div>
@@ -113,7 +113,7 @@ function IdFront({
       {/* 🆔 Employee ID */}
       <div
         className="absolute left-1/2 -translate-x-1/2 w-[86%] text-center text-black font-medium tracking-widest"
-        style={{ top: "455px", fontSize: "11px" }}
+        style={{ top: "472px", fontSize: "11px" }}
       >
         {employeeId}
       </div>

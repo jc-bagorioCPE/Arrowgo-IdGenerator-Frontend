@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -21,34 +21,136 @@ import {
   Hash,
   ChevronRight,
 } from 'lucide-react';
+import api from '../lib/api';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIRM DELETE DIALOG — professional redesign
+// ─────────────────────────────────────────────────────────────────────────────
+function ConfirmDeleteDialog({ isOpen, onClose, onConfirm, isClearAll, isLoading }) {
+  return (
+    <Dialog open={isOpen} onOpenChange={isLoading ? undefined : onClose}>
+      <DialogContent className="max-w-[380px] p-0 rounded-2xl overflow-hidden border-0 shadow-2xl bg-white dark:bg-[#141414]"
+        style={{ boxShadow: '0 32px 64px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.06)' }}
+      >
+        {/* Top danger accent line */}
+        <div className="h-[3px] w-full bg-gradient-to-r from-red-500 to-orange-400" />
 
+        <div className="px-7 pt-6 pb-6">
+          {/* Icon + title row */}
+          <div className="flex items-start gap-4 mb-5">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.18)' }}
+            >
+              <Trash2 size={19} className="text-red-500" />
+            </div>
+            <div className="pt-0.5">
+              <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white tracking-tight leading-snug mb-1">
+                {isClearAll ? 'Clear all notifications?' : 'Delete this notification?'}
+              </h2>
+              <p className="text-[13px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+                {isClearAll
+                  ? 'All notifications will be permanently removed from your inbox.'
+                  : 'This notification will be permanently removed from your inbox.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Permanent action warning */}
+          <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 mb-5"
+            style={{
+              background: 'rgba(239,68,68,0.06)',
+              border: '1px solid rgba(239,68,68,0.14)',
+            }}
+          >
+            {/* Pulsing dot */}
+            <span className="relative flex h-2 w-2 flex-shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-60" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+            </span>
+            <p className="text-[12px] font-medium text-red-500 dark:text-red-400 tracking-wide font-mono">
+              This action is permanent and cannot be undone
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-2.5">
+            <button
+              onClick={onClose}
+              disabled={isLoading}
+              className="flex-1 h-10 rounded-xl text-[13.5px] font-medium transition-all duration-150 disabled:opacity-40"
+              style={{
+                background: 'rgba(0,0,0,0.04)',
+                border: '1px solid rgba(0,0,0,0.08)',
+                color: '#71717a',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(0,0,0,0.07)';
+                e.currentTarget.style.color = '#3f3f46';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(0,0,0,0.04)';
+                e.currentTarget.style.color = '#71717a';
+              }}
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={onConfirm}
+              disabled={isLoading}
+              className="flex-1 h-10 rounded-xl text-[13.5px] font-medium text-white transition-all duration-150 disabled:opacity-50 relative overflow-hidden"
+              style={{ background: '#ef4444' }}
+              onMouseEnter={e => {
+                if (!isLoading) {
+                  e.currentTarget.style.background = '#dc2626';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(239,68,68,0.35)';
+                }
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = '#ef4444';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              {/* Subtle inner highlight */}
+              <span className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+              <span className="relative">
+                {isLoading
+                  ? (isClearAll ? 'Clearing…' : 'Deleting…')
+                  : (isClearAll ? 'Clear all' : 'Delete permanently')}
+              </span>
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTIFICATION BELL
+// ─────────────────────────────────────────────────────────────────────────────
 export function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/notifications`);
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data);
-        // ✅ FIX: Derive unread count directly from the fetched data
-        // instead of making a separate API call that can go out of sync
-        setUnreadCount(data.filter(n => !n.is_read).length);
-      }
+      const { data } = await api.get('/api/notifications');
+      setNotifications(data);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('Failed to fetch notifications:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000);
+    const interval = setInterval(fetchNotifications, 10_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifications]);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
     <>
@@ -65,91 +167,101 @@ export function NotificationBell() {
           </span>
         )}
       </Button>
+
       <NotificationModal
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         notifications={notifications}
-        unreadCount={unreadCount}
         onRefresh={fetchNotifications}
       />
     </>
   );
 }
 
-function NotificationModal({ isOpen, onClose, notifications, unreadCount, onRefresh }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTIFICATION MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+function NotificationModal({ isOpen, onClose, notifications, onRefresh }) {
   const [filter, setFilter] = useState('all');
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
 
-  // ✅ FIX: Derive read/unread counts directly from the notifications array
-  // so filter button labels are always accurate and in sync
-  const readCount   = notifications.filter(n =>  n.is_read).length;
-  const derivedUnread = notifications.filter(n => !n.is_read).length;
+  // Confirm dialog state
+  const [confirmOpen, setConfirmOpen]       = useState(false);
+  const [confirmTarget, setConfirmTarget]   = useState(null); // { id } | 'all'
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
-  const filteredNotifications = notifications.filter((notif) => {
-    if (filter === 'unread') return !notif.is_read;
-    if (filter === 'read')   return  notif.is_read;
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const readCount   = notifications.filter((n) =>  n.is_read).length;
+
+  const filteredNotifications = notifications.filter((n) => {
+    if (filter === 'unread') return !n.is_read;
+    if (filter === 'read')   return  n.is_read;
     return true;
   });
 
-  const markAsRead = async (id) => {
+  // ── Confirm helpers ────────────────────────────────────────────────────────
+
+  const askDeleteOne = (id) => { setConfirmTarget({ id }); setConfirmOpen(true); };
+  const askClearAll  = ()  => { setConfirmTarget('all');   setConfirmOpen(true); };
+
+  const handleConfirm = async () => {
+    setConfirmLoading(true);
     try {
-      await fetch(`${API_BASE}/api/notifications/${id}/read`, { method: 'PUT' });
+      if (confirmTarget === 'all') {
+        await api.delete('/api/notifications');
+        setSelectedNotification(null);
+      } else {
+        setLoadingId(confirmTarget.id);
+        await api.delete(`/api/notifications/${confirmTarget.id}`);
+        if (selectedNotification?.id === confirmTarget.id) setSelectedNotification(null);
+        setLoadingId(null);
+      }
       onRefresh();
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
+    } catch (err) {
+      console.error('Delete failed:', err);
+    } finally {
+      setConfirmLoading(false);
+      setConfirmOpen(false);
+      setConfirmTarget(null);
     }
+  };
+
+  const handleCancelConfirm = () => {
+    if (confirmLoading) return;
+    setConfirmOpen(false);
+    setConfirmTarget(null);
+  };
+
+  // ── Other API helpers ──────────────────────────────────────────────────────
+
+  const markAsRead = async (id) => {
+    try { await api.put(`/api/notifications/${id}/read`); onRefresh(); }
+    catch (err) { console.error('Mark as read failed:', err); }
   };
 
   const markAllAsRead = async () => {
-    try {
-      await fetch(`${API_BASE}/api/notifications/read-all`, { method: 'PUT' });
-      onRefresh();
-    } catch (error) {
-      console.error('Error marking all as read:', error);
-    }
-  };
-
-  const deleteNotification = async (id) => {
-    try {
-      await fetch(`${API_BASE}/api/notifications/${id}`, { method: 'DELETE' });
-      onRefresh();
-      if (selectedNotification?.id === id) {
-        setSelectedNotification(null);
-      }
-    } catch (error) {
-      console.error('Error deleting notification:', error);
-    }
-  };
-
-  const clearAll = async () => {
-    if (!window.confirm('Are you sure you want to clear all notifications?')) return;
-    try {
-      await fetch(`${API_BASE}/api/notifications`, { method: 'DELETE' });
-      onRefresh();
-      setSelectedNotification(null);
-    } catch (error) {
-      console.error('Error clearing notifications:', error);
-    }
+    try { await api.put('/api/notifications/read-all'); onRefresh(); }
+    catch (err) { console.error('Mark all as read failed:', err); }
   };
 
   const handleNotificationClick = async (notification) => {
     setSelectedNotification(notification);
-    if (!notification.is_read) {
-      await markAsRead(notification.id);
-    }
+    if (!notification.is_read) await markAsRead(notification.id);
   };
 
-  /* ── Helpers ── */
-  const getNotificationIcon = (type) => {
+  // ── Display helpers ────────────────────────────────────────────────────────
+
+  const getIcon = (type) => {
     switch (type) {
       case 'claim':        return <CheckCircle2 className="text-emerald-500 dark:text-emerald-400" size={20} />;
-      case 'registration': return <UserPlus className="text-blue-500 dark:text-blue-400" size={20} />;
-      case 'id_ready':     return <CreditCard className="text-purple-500 dark:text-purple-400" size={20} />;
-      default:             return <Bell className="text-slate-500 dark:text-zinc-400" size={20} />;
+      case 'registration': return <UserPlus     className="text-blue-500 dark:text-blue-400"       size={20} />;
+      case 'id_ready':     return <CreditCard   className="text-purple-500 dark:text-purple-400"   size={20} />;
+      default:             return <Bell         className="text-slate-500 dark:text-zinc-400"       size={20} />;
     }
   };
 
-  const getNotificationBgColor = (type) => {
+  const getIconBg = (type) => {
     switch (type) {
       case 'claim':        return 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20';
       case 'registration': return 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20';
@@ -158,7 +270,7 @@ function NotificationModal({ isOpen, onClose, notifications, unreadCount, onRefr
     }
   };
 
-  const getNotificationTypeLabel = (type) => {
+  const getTypeLabel = (type) => {
     switch (type) {
       case 'claim':        return 'ID Claimed';
       case 'registration': return 'New Registration';
@@ -167,22 +279,22 @@ function NotificationModal({ isOpen, onClose, notifications, unreadCount, onRefr
     }
   };
 
-  const formatTimeAgo = (timestamp) => {
-    const diffInSeconds = Math.floor((new Date() - new Date(timestamp)) / 1000);
-    if (diffInSeconds < 60)     return 'Just now';
-    if (diffInSeconds < 3600)   return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400)  return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    return new Date(timestamp).toLocaleDateString();
+  const timeAgo = (ts) => {
+    const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+    if (s < 60)      return 'Just now';
+    if (s < 3_600)   return `${Math.floor(s / 60)}m ago`;
+    if (s < 86_400)  return `${Math.floor(s / 3_600)}h ago`;
+    if (s < 604_800) return `${Math.floor(s / 86_400)}d ago`;
+    return new Date(ts).toLocaleDateString();
   };
 
-  const formatFullDate = (timestamp) =>
-    new Date(timestamp).toLocaleString('en-US', {
+  const fullDate = (ts) =>
+    new Date(ts).toLocaleString('en-US', {
       weekday: 'long', year: 'numeric', month: 'long',
       day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
     });
 
-  const filterBtn = (val, label) => (
+  const FilterBtn = ({ val, label }) => (
     <Button
       variant={filter === val ? 'default' : 'outline'}
       size="sm"
@@ -199,10 +311,10 @@ function NotificationModal({ isOpen, onClose, notifications, unreadCount, onRefr
 
   return (
     <>
-      {/* ── Main Notifications Modal ── */}
+      {/* ── LIST MODAL ── */}
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl p-0 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xl dark:shadow-black/60">
-          {/* Header */}
+
           <DialogHeader className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/60 dark:bg-white/[0.02]">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-gradient-to-br from-[#70B9A1] to-[#5A9A85] rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
@@ -213,47 +325,34 @@ function NotificationModal({ isOpen, onClose, notifications, unreadCount, onRefr
                   Notifications
                 </DialogTitle>
                 <p className="text-xs text-slate-500 dark:text-zinc-500 mt-0.5">
-                  {derivedUnread > 0 ? `${derivedUnread} unread` : 'All caught up!'}
+                  {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
                 </p>
               </div>
             </div>
           </DialogHeader>
 
-          {/* Filter Bar */}
           <div className="px-6 py-3 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-wrap items-center justify-between gap-3">
             <div className="flex gap-2">
-              {/* ✅ FIX: Use derivedUnread and readCount from the notifications array */}
-              {filterBtn('all',    `All (${notifications.length})`)}
-              {filterBtn('unread', `Unread (${derivedUnread})`)}
-              {filterBtn('read',   `Read (${readCount})`)}
+              <FilterBtn val="all"    label={`All (${notifications.length})`} />
+              <FilterBtn val="unread" label={`Unread (${unreadCount})`} />
+              <FilterBtn val="read"   label={`Read (${readCount})`} />
             </div>
             <div className="flex gap-2">
-              {derivedUnread > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={markAllAsRead}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg"
-                >
-                  <Check size={14} className="mr-1" />
-                  Mark all read
+              {unreadCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={markAllAsRead}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg">
+                  <Check size={14} className="mr-1" /> Mark all read
                 </Button>
               )}
               {notifications.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAll}
-                  className="text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg"
-                >
-                  <Trash2 size={14} className="mr-1" />
-                  Clear all
+                <Button variant="ghost" size="sm" onClick={askClearAll}
+                  className="text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg">
+                  <Trash2 size={14} className="mr-1" /> Clear all
                 </Button>
               )}
             </div>
           </div>
 
-          {/* Notification List */}
           <ScrollArea className="h-[400px] bg-slate-50/30 dark:bg-black">
             {filteredNotifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-6">
@@ -267,49 +366,41 @@ function NotificationModal({ isOpen, onClose, notifications, unreadCount, onRefr
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-zinc-800/70">
-                {filteredNotifications.map((notification) => (
+                {filteredNotifications.map((n) => (
                   <div
-                    key={notification.id}
+                    key={n.id}
+                    onClick={() => handleNotificationClick(n)}
                     className={`p-4 cursor-pointer transition-all border-l-4 ${
-                      !notification.is_read
-                        ? 'bg-[#70B9A1]/5 dark:bg-[#70B9A1]/5 border-[#70B9A1] hover:bg-[#70B9A1]/10 dark:hover:bg-[#70B9A1]/10'
+                      !n.is_read
+                        ? 'bg-[#70B9A1]/5 border-[#70B9A1] hover:bg-[#70B9A1]/10'
                         : 'bg-white dark:bg-zinc-950 border-transparent hover:bg-slate-50 dark:hover:bg-white/[0.025]'
                     }`}
-                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex gap-3">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 border ${getNotificationBgColor(notification.type)}`}>
-                        {getNotificationIcon(notification.type)}
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 border ${getIconBg(n.type)}`}>
+                        {getIcon(n.type)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-0.5">
-                              <p className="font-semibold text-slate-900 dark:text-white text-sm">
-                                {getNotificationTypeLabel(notification.type)}
-                              </p>
-                              {!notification.is_read && (
-                                <Badge className="text-[10px] bg-[#70B9A1] text-white px-1.5 py-0 h-4">
-                                  New
-                                </Badge>
+                              <p className="font-semibold text-slate-900 dark:text-white text-sm">{getTypeLabel(n.type)}</p>
+                              {!n.is_read && (
+                                <Badge className="text-[10px] bg-[#70B9A1] text-white px-1.5 py-0 h-4">New</Badge>
                               )}
                             </div>
-                            <p className="text-sm text-slate-600 dark:text-zinc-400 line-clamp-2">
-                              {notification.message}
-                            </p>
+                            <p className="text-sm text-slate-600 dark:text-zinc-400 line-clamp-2">{n.message}</p>
                             <div className="flex items-center gap-1.5 mt-1.5">
                               <Clock size={11} className="text-slate-400 dark:text-zinc-600" />
-                              <span className="text-xs text-slate-400 dark:text-zinc-500">
-                                {formatTimeAgo(notification.created_at)}
-                              </span>
+                              <span className="text-xs text-slate-400 dark:text-zinc-500">{timeAgo(n.created_at)}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => { e.stopPropagation(); deleteNotification(notification.id); }}
-                              className="h-7 w-7 p-0 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10"
+                              variant="ghost" size="sm"
+                              disabled={loadingId === n.id}
+                              onClick={(e) => { e.stopPropagation(); askDeleteOne(n.id); }}
+                              className="h-7 w-7 p-0 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-40"
                               title="Delete"
                             >
                               <Trash2 size={14} className="text-red-500 dark:text-red-400" />
@@ -327,7 +418,7 @@ function NotificationModal({ isOpen, onClose, notifications, unreadCount, onRefr
         </DialogContent>
       </Dialog>
 
-      {/* ── Notification Details Modal ── */}
+      {/* ── DETAIL MODAL ── */}
       <Dialog open={!!selectedNotification} onOpenChange={() => setSelectedNotification(null)}>
         <DialogContent className="max-w-lg rounded-2xl bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 shadow-xl dark:shadow-black/60">
           <DialogHeader className="border-b border-slate-100 dark:border-zinc-800 pb-4">
@@ -335,93 +426,70 @@ function NotificationModal({ isOpen, onClose, notifications, unreadCount, onRefr
               Notification Details
             </DialogTitle>
           </DialogHeader>
+
           {selectedNotification && (
             <div className="space-y-4 py-2">
-              {/* Type + Badge */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center border ${getNotificationBgColor(selectedNotification.type)}`}>
-                    {getNotificationIcon(selectedNotification.type)}
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center border ${getIconBg(selectedNotification.type)}`}>
+                    {getIcon(selectedNotification.type)}
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 dark:text-white text-sm">
-                      {getNotificationTypeLabel(selectedNotification.type)}
-                    </p>
-                    <p className="text-xs text-slate-400 dark:text-zinc-500 font-mono">
-                      #{selectedNotification.id}
-                    </p>
+                    <p className="font-semibold text-slate-900 dark:text-white text-sm">{getTypeLabel(selectedNotification.type)}</p>
+                    <p className="text-xs text-slate-400 dark:text-zinc-500 font-mono">#{selectedNotification.id}</p>
                   </div>
                 </div>
                 <Badge className={selectedNotification.is_read
                   ? 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-white/10'
-                  : 'bg-[#70B9A1] text-white'
-                }>
+                  : 'bg-[#70B9A1] text-white'}>
                   {selectedNotification.is_read ? 'Read' : 'Unread'}
                 </Badge>
               </div>
 
-              {/* Message */}
               <div className="bg-slate-50 dark:bg-white/[0.03] p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
-                <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">
-                  {selectedNotification.message}
-                </p>
+                <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">{selectedNotification.message}</p>
               </div>
 
-              {/* Employee Info */}
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-slate-500 dark:text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                  <User size={13} />
-                  Employee Information
+                  <User size={13} /> Employee Information
                 </h3>
                 <div className="bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-zinc-800 rounded-xl divide-y divide-slate-100 dark:divide-zinc-800">
                   <div className="px-4 py-3 flex items-center justify-between">
                     <span className="text-sm text-slate-500 dark:text-zinc-500">Name</span>
-                    <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                      {selectedNotification.employee_name}
-                    </span>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white">{selectedNotification.employee_name}</span>
                   </div>
                   <div className="px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm text-slate-500 dark:text-zinc-500 flex items-center gap-1.5">
-                      <Hash size={13} /> Employee ID
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900 dark:text-white font-mono">
-                      {selectedNotification.employee_id}
-                    </span>
+                    <span className="text-sm text-slate-500 dark:text-zinc-500 flex items-center gap-1.5"><Hash size={13} /> Employee ID</span>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white font-mono">{selectedNotification.employee_id}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Timestamps */}
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-slate-500 dark:text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                  <Calendar size={13} />
-                  Date & Time
+                  <Calendar size={13} /> Date & Time
                 </h3>
                 <div className="bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-zinc-800 rounded-xl divide-y divide-slate-100 dark:divide-zinc-800">
                   <div className="px-4 py-3 flex items-center justify-between gap-4">
                     <span className="text-sm text-slate-500 dark:text-zinc-500 shrink-0">Created</span>
-                    <span className="text-sm font-medium text-slate-900 dark:text-white text-right">
-                      {formatFullDate(selectedNotification.created_at)}
-                    </span>
+                    <span className="text-sm font-medium text-slate-900 dark:text-white text-right">{fullDate(selectedNotification.created_at)}</span>
                   </div>
                   <div className="px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm text-slate-500 dark:text-zinc-500">Time Ago</span>
-                    <span className="text-sm font-medium text-slate-900 dark:text-white">
-                      {formatTimeAgo(selectedNotification.created_at)}
-                    </span>
+                    <span className="text-sm text-slate-500 dark:text-zinc-500">Time ago</span>
+                    <span className="text-sm font-medium text-slate-900 dark:text-white">{timeAgo(selectedNotification.created_at)}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-2 pt-1">
                 <Button
                   variant="outline"
-                  className="flex-1 rounded-xl border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                  onClick={() => { deleteNotification(selectedNotification.id); setSelectedNotification(null); }}
+                  disabled={loadingId === selectedNotification.id}
+                  className="flex-1 rounded-xl border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 disabled:opacity-40"
+                  onClick={() => askDeleteOne(selectedNotification.id)}
                 >
-                  <Trash2 size={15} className="mr-2 text-red-500" />
-                  Delete
+                  <Trash2 size={15} className="mr-2 text-red-500" /> Delete
                 </Button>
                 <Button
                   className="flex-1 rounded-xl bg-[#70B9A1] hover:bg-[#5A9A85] text-white"
@@ -434,6 +502,15 @@ function NotificationModal({ isOpen, onClose, notifications, unreadCount, onRefr
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── CONFIRM DELETE DIALOG ── */}
+      <ConfirmDeleteDialog
+        isOpen={confirmOpen}
+        onClose={handleCancelConfirm}
+        onConfirm={handleConfirm}
+        isClearAll={confirmTarget === 'all'}
+        isLoading={confirmLoading}
+      />
     </>
   );
 }

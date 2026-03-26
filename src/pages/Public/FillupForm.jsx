@@ -24,26 +24,27 @@ import {
   QrCode,
   Sparkles,
   Clock,
-  Lock,
 } from "lucide-react";
 
 export default function RegisterEmployee() {
   const navigate = useNavigate();
   const qrWrapperRef = useRef(null);
+
   const [form, setForm] = useState({
-    employeeName: "",
-    employeeId: "",
-    position: "",
-    philhealth: "",
-    sss: "",
-    pagibig: "",
-    tin: "",
+    employeeName:  "",
+    employeeId:    "",
+    position:      "",
+    philhealth:    "",
+    sss:           "",
+    pagibig:       "",
+    tin:           "",
     contactPerson: "",
     contactNumber: "",
   });
-  const [errors, setErrors] = useState({});
-  const [employee, setEmployee] = useState(null);
-  const [loading, setLoading] = useState(false);
+
+  const [errors,             setErrors]             = useState({});
+  const [employee,           setEmployee]           = useState(null);
+  const [loading,            setLoading]            = useState(false);
   const [tokenExpiryWarning, setTokenExpiryWarning] = useState(false);
   const [isEmployeeIdLocked, setIsEmployeeIdLocked] = useState(false);
 
@@ -74,9 +75,7 @@ export default function RegisterEmployee() {
             contactPerson: toTitleCase(emp.contactPerson || ""),
             contactNumber: (emp.contactNumber || "").replace(/\s+/g, ""),
           }));
-          if (emp.employeeId) {
-            setIsEmployeeIdLocked(true);
-          }
+          if (emp.employeeId) setIsEmployeeIdLocked(true);
         }
       } catch (error) {
         console.error("Error loading token data:", error);
@@ -84,17 +83,18 @@ export default function RegisterEmployee() {
     }
   }, []);
 
-  // ── Token expiry countdown ─────────────────────────────────────────────────
+  // ── Session expiry countdown ───────────────────────────────────────────────
   useEffect(() => {
     let hasAlerted10s = false;
     const checkTokenExpiry = setInterval(() => {
       const tokenData = sessionStorage.getItem("registrationToken");
       if (tokenData) {
         try {
-          const parsed = JSON.parse(tokenData);
-          const timeLeft = parsed.expiresAt - Date.now();
+          const parsed      = JSON.parse(tokenData);
+          const timeLeft    = parsed.expiresAt - Date.now();
           const secondsLeft = Math.ceil(timeLeft / 1000);
           console.log(`⏳ Token expires in: ${secondsLeft}s`);
+
           if (secondsLeft === 10 && !hasAlerted10s) {
             hasAlerted10s = true;
             alert("⚠️ Your session will expire in 10 seconds!");
@@ -116,103 +116,38 @@ export default function RegisterEmployee() {
     return () => clearInterval(checkTokenExpiry);
   }, [navigate]);
 
+  // ── Field config ───────────────────────────────────────────────────────────
   const fieldConfig = {
-    employeeName: {
-      placeholder: "Enter full employee name",
-      icon: User,
-      label: "Employee Name",
-      color: "blue",
-      format: "Letters, spaces, and . ' - allowed",
-      maxLength: 100,
-    },
-    employeeId: {
-      placeholder: "Ex: EMP-001",
-      icon: FileText,
-      label: "Employee ID",
-      color: "purple",
-      format: "Format: XXXXXX-####-###",
-      maxLength: 15,
-    },
-    position: {
-      placeholder: "Ex: Driver, Helper, Coordinator",
-      icon: Briefcase,
-      label: "Position",
-      color: "green",
-      format: "Letters, spaces, and . ' - allowed",
-      maxLength: 50,
-    },
-    philhealth: {
-      placeholder: "##-#########-#",
-      icon: Heart,
-      label: "PhilHealth",
-      color: "red",
-      format: "Format: 12-345678901-2 (14 digits)",
-      maxLength: 14,
-    },
-    sss: {
-      placeholder: "##-#######-#",
-      icon: CreditCard,
-      label: "SSS",
-      color: "yellow",
-      format: "Format: 12-3456789-0 (10 digits)",
-      maxLength: 12,
-    },
-    pagibig: {
-      placeholder: "####-####-####",
-      icon: Home,
-      label: "Pag-IBIG",
-      color: "orange",
-      format: "Format: 1234-5678-9012 (12 digits)",
-      maxLength: 14,
-    },
-    tin: {
-      placeholder: "###-###-###-###",
-      icon: FileText,
-      label: "TIN",
-      color: "indigo",
-      format: "Format: 123-456-789-000 (12 digits)",
-      maxLength: 15,
-    },
-    contactPerson: {
-      placeholder: "Emergency contact name",
-      icon: Users,
-      label: "Contact Person",
-      color: "pink",
-      format: "Letters, spaces, and . ' - allowed",
-      maxLength: 100,
-    },
-    contactNumber: {
-      placeholder: "09#########",
-      icon: Phone,
-      label: "Contact Number",
-      color: "teal",
-      format: "Format: 09XXXXXXXXX (11 digits)",
-      maxLength: 11,
-    },
+    employeeName:  { placeholder: "Enter full employee name",         icon: User,       label: "Employee Name",  color: "blue",   format: "Letters, spaces, and . ' - allowed",  maxLength: 100 },
+    employeeId:    { placeholder: "Ex: EMP-001",                      icon: FileText,   label: "Employee ID",    color: "purple", format: "Format: XXXXXX-####-###",             maxLength: 15  },
+    position:      { placeholder: "Ex: Driver, Helper, Coordinator",  icon: Briefcase,  label: "Position",       color: "green",  format: "Letters, spaces, and . ' - allowed",  maxLength: 50  },
+    philhealth:    { placeholder: "##-#########-#",                   icon: Heart,      label: "PhilHealth",     color: "red",    format: "Format: 12-345678901-2 (14 digits)",  maxLength: 14  },
+    sss:           { placeholder: "##-#######-#",                     icon: CreditCard, label: "SSS",            color: "yellow", format: "Format: 12-3456789-0 (10 digits)",    maxLength: 12  },
+    pagibig:       { placeholder: "####-####-####",                   icon: Home,       label: "Pag-IBIG",       color: "orange", format: "Format: 1234-5678-9012 (12 digits)",  maxLength: 14  },
+    tin:           { placeholder: "###-###-###-###",                  icon: FileText,   label: "TIN",            color: "indigo", format: "Format: 123-456-789-000 (12 digits)", maxLength: 15  },
+    contactPerson: { placeholder: "Emergency contact name",            icon: Users,      label: "Contact Person", color: "pink",   format: "Letters, spaces, and . ' - allowed",  maxLength: 100 },
+    contactNumber: { placeholder: "09#########",                      icon: Phone,      label: "Contact Number", color: "teal",   format: "Format: 09XXXXXXXXX (11 digits)",     maxLength: 11  },
   };
 
   // ── Formatters ─────────────────────────────────────────────────────────────
   const formatPhilHealth = (value) => {
     const n = value.replace(/\D/g, "");
-    if (n.length <= 2) return n;
+    if (n.length <= 2)  return n;
     if (n.length <= 11) return `${n.slice(0, 2)}-${n.slice(2)}`;
     return `${n.slice(0, 2)}-${n.slice(2, 11)}-${n.slice(11, 12)}`;
   };
-
   const formatSSS = (value) => {
     const n = value.replace(/\D/g, "");
     if (n.length <= 2) return n;
     if (n.length <= 9) return `${n.slice(0, 2)}-${n.slice(2)}`;
     return `${n.slice(0, 2)}-${n.slice(2, 9)}-${n.slice(9, 10)}`;
   };
-
   const formatPagibig = (value) => {
     const n = value.replace(/\D/g, "");
     if (n.length <= 4) return n;
     if (n.length <= 8) return `${n.slice(0, 4)}-${n.slice(4)}`;
     return `${n.slice(0, 4)}-${n.slice(4, 8)}-${n.slice(8, 12)}`;
   };
-
   const formatTIN = (value) => {
     const n = value.replace(/\D/g, "");
     if (n.length <= 3) return n;
@@ -220,7 +155,6 @@ export default function RegisterEmployee() {
     if (n.length <= 9) return `${n.slice(0, 3)}-${n.slice(3, 6)}-${n.slice(6)}`;
     return `${n.slice(0, 3)}-${n.slice(3, 6)}-${n.slice(6, 9)}-${n.slice(9, 12)}`;
   };
-
   const formatContactNumber = (value) =>
     value.replace(/\D/g, "").slice(0, 11);
 
@@ -265,11 +199,9 @@ export default function RegisterEmployee() {
   // ── handleChange with title case ───────────────────────────────────────────
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     if (name === "employeeId" && isEmployeeIdLocked) return;
 
     let formattedValue = value;
-
     switch (name) {
       case "employeeName":
       case "contactPerson":
@@ -278,23 +210,12 @@ export default function RegisterEmployee() {
       case "position":
         formattedValue = toTitleCase(value.replace(/[^A-Za-z.\s]/g, ""));
         break;
-      case "philhealth":
-        formattedValue = formatPhilHealth(value);
-        break;
-      case "sss":
-        formattedValue = formatSSS(value);
-        break;
-      case "pagibig":
-        formattedValue = formatPagibig(value);
-        break;
-      case "tin":
-        formattedValue = formatTIN(value);
-        break;
-      case "contactNumber":
-        formattedValue = formatContactNumber(value);
-        break;
-      default:
-        break;
+      case "philhealth":     formattedValue = formatPhilHealth(value);     break;
+      case "sss":            formattedValue = formatSSS(value);            break;
+      case "pagibig":        formattedValue = formatPagibig(value);        break;
+      case "tin":            formattedValue = formatTIN(value);            break;
+      case "contactNumber":  formattedValue = formatContactNumber(value);  break;
+      default: break;
     }
 
     setForm((prev) => ({ ...prev, [name]: formattedValue }));
@@ -343,14 +264,16 @@ export default function RegisterEmployee() {
         setLoading(false);
         return;
       }
+
       const payload = { ...form, qrImageBase64: qrBase64 };
-      const res = await fetch(`${api}/save-employee`, {
-        method: "POST",
+      const res  = await fetch(`${api}/save-employee`, {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body:    JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Server error");
+
       sessionStorage.removeItem("registrationToken");
       setEmployee(data);
     } catch (err) {
@@ -365,8 +288,8 @@ export default function RegisterEmployee() {
     const canvas = document.getElementById("qr-gen-visible");
     if (!canvas) return alert("QR canvas not found to download.");
     const pngUrl = canvas.toDataURL("image/png");
-    const link = document.createElement("a");
-    link.href = pngUrl;
+    const link   = document.createElement("a");
+    link.href     = pngUrl;
     link.download = `employee-${employee.employee_id}-qr.png`;
     link.click();
   };
@@ -376,7 +299,16 @@ export default function RegisterEmployee() {
     Object.values(errors).every((e) => !e);
 
   const filledFields = Object.values(form).filter((v) => v.trim() !== "").length;
-  const progress = (filledFields / Object.keys(form).length) * 100;
+  const progress     = (filledFields / Object.keys(form).length) * 100;
+
+  // ── QR URL (plain — no token) ──────────────────────────────────────────────
+  const hiddenQrValue  = form.employeeId
+    ? `${url}/employee/${form.employeeId.toUpperCase()}`
+    : `${url}/employee/temp`;
+
+  const successQrValue = employee
+    ? `${url}/employee/${employee.employee_id.toUpperCase()}`
+    : "";
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -477,8 +409,8 @@ export default function RegisterEmployee() {
                 <CardContent className="p-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {Object.keys(form).map((key, index) => {
-                      const config = fieldConfig[key];
-                      const Icon = config.icon;
+                      const config   = fieldConfig[key];
+                      const Icon     = config.icon;
                       const hasError = errors[key];
                       const isFilled = form[key].trim() !== "";
                       const isLocked = key === "employeeId" && isEmployeeIdLocked;
@@ -496,7 +428,6 @@ export default function RegisterEmployee() {
                             {config.label}
                             {isLocked ? (
                               <span className="ml-auto flex items-center gap-1 text-xs font-medium text-purple-600 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">
-                                <Lock className="h-3 w-3" />
                                 Verified Employee ID
                               </span>
                             ) : (
@@ -524,19 +455,13 @@ export default function RegisterEmployee() {
                                   : "border-gray-200 focus:border-green-500"
                               }`}
                             />
-                            {isLocked && (
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                                <Lock className="h-4 w-4 text-purple-400" />
-                              </div>
-                            )}
                           </div>
 
-                          <p className="text-xs mt-1 flex items-center gap-1 text-purple-500">
+                          <p className="text-xs mt-1 flex items-center gap-1">
                             {isLocked ? (
-                              <>
-                                <Lock className="h-3 w-3" />
+                              <span className="text-purple-500">
                                 This ID was assigned by the system and cannot be changed
-                              </>
+                              </span>
                             ) : (
                               <span className="text-gray-500">{config.format}</span>
                             )}
@@ -560,11 +485,11 @@ export default function RegisterEmployee() {
                     })}
                   </div>
 
-                  {/* Hidden QR canvas */}
+                  {/* Hidden QR canvas — plain URL, no token */}
                   <div style={{ position: "absolute", left: -9999, top: 0 }}>
                     <div ref={qrWrapperRef}>
                       <QRCodeCanvas
-                        value={`${url}/employee/${form.employeeId.toUpperCase() || "temp"}`}
+                        value={hiddenQrValue}
                         size={256}
                         includeMargin={false}
                       />
@@ -646,12 +571,14 @@ export default function RegisterEmployee() {
                   </CardHeader>
                   <CardContent className="p-8 bg-white">
                     <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-2xl inline-block">
-                      <QRCodeCanvas
-                        id="qr-gen-visible"
-                        value={`${url}/employee/${employee.employee_id.toUpperCase()}`}
-                        size={280}
-                        level="H"
-                      />
+                      {successQrValue && (
+                        <QRCodeCanvas
+                          id="qr-gen-visible"
+                          value={successQrValue}
+                          size={280}
+                          level="H"
+                        />
+                      )}
                     </div>
                   </CardContent>
                 </Card>
