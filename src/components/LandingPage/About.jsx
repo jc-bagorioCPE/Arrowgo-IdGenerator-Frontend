@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 
 // ID EXAMPLE IMAGES
-import idFront from "../../assets/IDFront.png";
-import idBack from "../../assets/IDBack.png";
+import idFront from "../../assets/sampleFront.png";
+import idBack from "../../assets/sampleBack.png";
 
 export default function About() {
   const containerVariants = {

@@ -33,7 +33,11 @@ import {
 import axios from "axios";
 
 export default function UserInfo() {
-  const { id } = useParams();
+  // ── NEW: read both :id (legacy) and :token (new QR token route) ───────────
+  // Works for:
+  //   /employee/:id          → old route, looks up by employee_id
+  //   /employee/token/:token → new route, looks up by qr_token
+  const { id, token } = useParams();
 
   const [employee,            setEmployee]            = useState(null);
   const [loading,             setLoading]             = useState(true);
@@ -54,23 +58,34 @@ export default function UserInfo() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res  = await axios.get(`${api}/api/employees/${id}`);
+
+        // ── NEW: choose endpoint based on which param is present ─────────────
+        // token param  → /api/employee-by-token/:token  (QR scan route)
+        // id param     → /api/employees/:id             (legacy direct route)
+        const endpoint = token
+          ? `${api}/api/employee-by-token/${token}`
+          : `${api}/api/employees/${id}`;
+
+        const res  = await axios.get(endpoint);
         const data = res.data;
 
         if (!data?.employeeId) { setEmployee(null); return; }
         setEmployee(data);
 
+        // ── Media is always fetched by employeeId (not by token) ─────────────
+        const empId = data.employeeId;
+
         let hasPhoto     = false;
         let hasSignature = false;
 
         try {
-          const photoRes = await axios.get(`${api}/api/employees/${id}/photo`, { responseType: "blob" });
+          const photoRes = await axios.get(`${api}/api/employees/${empId}/photo`, { responseType: "blob" });
           setPhoto(URL.createObjectURL(photoRes.data));
           hasPhoto = true;
         } catch { console.log("No photo found"); }
 
         try {
-          const sigRes = await axios.get(`${api}/api/employees/${id}/signature`, { responseType: "blob" });
+          const sigRes = await axios.get(`${api}/api/employees/${empId}/signature`, { responseType: "blob" });
           setSignature(URL.createObjectURL(sigRes.data));
           hasSignature = true;
         } catch { console.log("No signature found"); }
@@ -85,18 +100,17 @@ export default function UserInfo() {
     };
 
     fetchData();
-  }, [id]);
+  // Re-run if either param changes
+  }, [id, token]);
 
   // ── Reset canvas when dialog opens ────────────────────────────────────────
   useEffect(() => {
     if (showSignatureDialog) {
       setHasDrawn(false);
-      // Small delay to ensure canvas is mounted
       setTimeout(() => {
         if (sigRef.current) {
           const ctx = sigRef.current.getContext("2d");
           ctx.clearRect(0, 0, sigRef.current.width, sigRef.current.height);
-          // If there's an existing signature (not a blob URL), draw it on canvas
           if (signature && signature.startsWith("data:")) {
             const img = new Image();
             img.onload = () => ctx.drawImage(img, 0, 0, sigRef.current.width, sigRef.current.height);
@@ -168,7 +182,6 @@ export default function UserInfo() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const dataUrl = reader.result;
-      // Draw uploaded image onto canvas
       if (sigRef.current) {
         const ctx = sigRef.current.getContext("2d");
         ctx.clearRect(0, 0, sigRef.current.width, sigRef.current.height);
@@ -186,13 +199,11 @@ export default function UserInfo() {
   // ── Done: capture canvas and close dialog ─────────────────────────────────
   const handleSignatureDone = () => {
     if (sigRef.current && hasDrawn) {
-      // Check canvas is not blank
       const canvas  = sigRef.current;
       const blank   = document.createElement("canvas");
       blank.width   = canvas.width;
       blank.height  = canvas.height;
       const dataUrl = canvas.toDataURL("image/png");
-
       if (dataUrl !== blank.toDataURL()) {
         setSignature(dataUrl);
       }
@@ -200,10 +211,12 @@ export default function UserInfo() {
     setShowSignatureDialog(false);
   };
 
+  // ── Save photo & signature — always uses employeeId from fetched data ──────
   const handleSave = async () => {
     try {
       setSaving(true);
-      await axios.put(`${api}/api/employees/${id}/media`, {
+      // employee.employeeId is always available regardless of how we fetched
+      await axios.put(`${api}/api/employees/${employee.employeeId}/media`, {
         photoBase64:     photo,
         signatureBase64: signature,
       });
@@ -468,7 +481,6 @@ export default function UserInfo() {
                           )}
                         </Button>
 
-                        {/* Helper text showing what's still needed */}
                         {(!photo || !signature) && (
                           <p className="text-xs text-center text-gray-500 mt-2">
                             {!photo && !signature

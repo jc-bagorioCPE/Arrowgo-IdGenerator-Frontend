@@ -47,6 +47,8 @@ export default function RegisterEmployee() {
   const [loading,            setLoading]            = useState(false);
   const [tokenExpiryWarning, setTokenExpiryWarning] = useState(false);
   const [isEmployeeIdLocked, setIsEmployeeIdLocked] = useState(false);
+  // ── NEW: stores the permanent qr_token returned after save ────────────────
+  const [qrToken,            setQrToken]            = useState(null);
 
   const api = import.meta.env.VITE_API_BASE_URL;
   const url = import.meta.env.VITE_FRONTEND_BASE_URL;
@@ -258,6 +260,9 @@ export default function RegisterEmployee() {
     if (!validateForm()) return;
     setLoading(true);
     try {
+      // The hidden QR canvas still encodes a placeholder URL using employeeId.
+      // The server will generate the real qr_token and return it.
+      // After save, the success-screen QR will re-render with the token URL.
       const qrBase64 = await getQRBase64();
       if (!qrBase64) {
         alert("Failed to capture QR. Make sure the canvas is rendered.");
@@ -275,6 +280,9 @@ export default function RegisterEmployee() {
       if (!res.ok) throw new Error(data.error || "Server error");
 
       sessionStorage.removeItem("registrationToken");
+
+      // ── NEW: capture the permanent qr_token from the server response ───────
+      setQrToken(data.qr_token);
       setEmployee(data);
     } catch (err) {
       console.error("Save error:", err);
@@ -301,12 +309,16 @@ export default function RegisterEmployee() {
   const filledFields = Object.values(form).filter((v) => v.trim() !== "").length;
   const progress     = (filledFields / Object.keys(form).length) * 100;
 
-  // ── QR URL (plain — no token) ──────────────────────────────────────────────
-  const hiddenQrValue  = form.employeeId
+  // ── Hidden pre-save QR still uses employeeId (token doesn't exist yet) ─────
+  const hiddenQrValue = form.employeeId
     ? `${url}/employee/${form.employeeId.toUpperCase()}`
     : `${url}/employee/temp`;
 
-  const successQrValue = employee
+  // ── NEW: success QR encodes the permanent token-based URL ──────────────────
+  // Falls back to employee ID route if server didn't return a token (safety net)
+  const successQrValue = qrToken
+    ? `${url}/employee/token/${qrToken}`
+    : employee
     ? `${url}/employee/${employee.employee_id.toUpperCase()}`
     : "";
 
@@ -485,7 +497,7 @@ export default function RegisterEmployee() {
                     })}
                   </div>
 
-                  {/* Hidden QR canvas — plain URL, no token */}
+                  {/* Hidden QR canvas — uses employeeId placeholder before save */}
                   <div style={{ position: "absolute", left: -9999, top: 0 }}>
                     <div ref={qrWrapperRef}>
                       <QRCodeCanvas
@@ -571,6 +583,7 @@ export default function RegisterEmployee() {
                   </CardHeader>
                   <CardContent className="p-8 bg-white">
                     <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-2xl inline-block">
+                      {/* ── NEW: QR now encodes the permanent token URL ─────── */}
                       {successQrValue && (
                         <QRCodeCanvas
                           id="qr-gen-visible"
@@ -580,6 +593,12 @@ export default function RegisterEmployee() {
                         />
                       )}
                     </div>
+                    {/* ── Show the token URL for transparency ────────────────── */}
+                    {qrToken && (
+                      <p className="mt-3 text-xs text-gray-400 font-mono break-all">
+                        {successQrValue}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>

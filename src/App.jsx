@@ -77,6 +77,7 @@ function App() {
 
         <Route path="/Register" element={<RequireRegistrationToken><EmployeeFillUpForm /> </RequireRegistrationToken>} />
         <Route path="/employee/:id" element={<UserInformationPage />} />
+        <Route path="/employee/token/:token"   element={<UserInformationPage />} />
         <Route path="/IDGenerated" element={<IDGenerated />} />
         <Route path="/Documentation" element={<Documentation />} />
         <Route path="/Recruitment" element={<RecruitmentPage />} /> 
