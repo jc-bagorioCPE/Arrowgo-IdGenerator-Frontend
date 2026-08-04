@@ -5,6 +5,7 @@ function IdFront({
   employeeName,
   position,
   employeeId,
+  branchAddress,          // ← NEW: resolved from employeeId in IdCreator.jsx
   signatureDraw,
   signatureUpload,
   photo,
@@ -75,6 +76,18 @@ function IdFront({
         style={{ pointerEvents: "none" }}
       />
 
+      {/* 🏢 Branch Address — sits right under the logo on the template.
+          TOP_PX below is the only number you should need to touch: nudge it
+          down if it's overlapping the logo, or up if there's a gap. */}
+      {branchAddress && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 w-[82%] text-center text-black font-bold"
+          style={{ top: "80px", fontSize: "9px", lineHeight: "1.25" }}
+        >
+          {branchAddress}
+        </div>
+      )}
+
       {/* ✍ Signature */}
       {signature && (
         <img
@@ -112,8 +125,8 @@ function IdFront({
 
       {/* 🆔 Employee ID */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 w-[86%] text-center text-black font-medium tracking-widest"
-        style={{ top: "472px", fontSize: "11px" }}
+        className="absolute left-1/2 -translate-x-1/2 w-[86%] text-center text-black font-bold"
+        style={{ top: "472px", fontSize: "12px" }}
       >
         {employeeId}
       </div>

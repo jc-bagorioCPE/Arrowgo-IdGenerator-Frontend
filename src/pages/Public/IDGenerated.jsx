@@ -230,7 +230,7 @@ export default function Claim() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none z-10" />
                   <Input
-                    placeholder="Search by name or ID..."
+                    placeholder="Search by name..."
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value);
@@ -302,29 +302,22 @@ export default function Claim() {
                 </div>
               </div>
 
-              {/* Table */}
+              {/* Table — single unified table for proper column alignment */}
               <div className="rounded-xl border-2 border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="overflow-x-auto" style={{ minHeight: '480px' }}>
+                  <table className="w-full table-fixed">
                     <thead>
                       <tr className="bg-gradient-to-r from-blue-50 to-purple-50 border-b-2 border-gray-200">
-                        <th className="text-left p-4 font-bold text-gray-700">Employee Name</th>
-                        <th className="text-left p-4 font-bold text-gray-700">Employee ID</th>
-                        <th className="text-left p-4 font-bold text-gray-700">Position</th>
-                        <th className="text-left p-4 font-bold text-gray-700">Claim Status</th>
+                        <th className="text-left p-4 font-bold text-gray-700" style={{ width: '40%' }}>Employee Name</th>
+                        <th className="text-left p-4 font-bold text-gray-700" style={{ width: '35%' }}>Position</th>
+                        <th className="text-left p-4 font-bold text-gray-700" style={{ width: '25%' }}>Claim Status</th>
                       </tr>
                     </thead>
-                  </table>
-                </div>
-                
-                {/* Fixed height tbody container */}
-                <div className="overflow-x-auto" style={{ minHeight: '480px', maxHeight: '480px' }}>
-                  <table className="w-full">
                     <tbody>
                       <AnimatePresence mode="wait">
                         {loading ? (
                           <tr>
-                            <td colSpan={4} className="text-center py-12">
+                            <td colSpan={3} className="text-center py-12">
                               <motion.div
                                 animate={{ rotate: 360 }}
                                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -335,7 +328,7 @@ export default function Claim() {
                           </tr>
                         ) : paginatedEmployees.length === 0 ? (
                           <tr>
-                            <td colSpan={4} className="text-center py-12">
+                            <td colSpan={3} className="text-center py-12">
                               <div className="flex flex-col items-center gap-3">
                                 <div className="p-4 bg-gray-100 rounded-full">
                                   <Search className="h-8 w-8 text-gray-400" />
@@ -354,16 +347,9 @@ export default function Claim() {
                               transition={{ duration: 0.3, delay: index * 0.05 }}
                               className="border-b border-gray-100 hover:bg-blue-50 transition-colors"
                             >
-                              <td className="p-4 font-medium text-gray-800" style={{ width: '30%' }}>
-                                {emp.employee_name}
-                              </td>
-                              <td className="p-4 text-gray-600" style={{ width: '25%' }}>
-                                <span className="px-3 py-1 bg-gray-100 rounded-lg font-mono text-sm">
-                                  {emp.employee_id}
-                                </span>
-                              </td>
-                              <td className="p-4 text-gray-600" style={{ width: '25%' }}>{emp.position}</td>
-                              <td className="p-4" style={{ width: '20%' }}>
+                              <td className="p-4 font-medium text-gray-800">{emp.employee_name}</td>
+                              <td className="p-4 text-gray-600">{emp.position}</td>
+                              <td className="p-4">
                                 <div className="flex items-center gap-2">
                                   {emp.current_status === "claimed" ? (
                                     <>

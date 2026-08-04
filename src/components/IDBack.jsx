@@ -12,28 +12,28 @@ export default function IdBack({ contactPerson, contactNumber, qrCodeFile, philh
       >
         {/* PhilHealth value */}
         <div style={{ height: "28px", display: "flex", alignItems: "center" }}>
-          <span className="text-[12px] font-semibold text-black font-mono">
+          <span className="text-[12px] font-bold text-black">
             {philhealth || ""}
           </span>
         </div>
 
         {/* SSS value */}
         <div style={{ height: "26px", display: "flex", alignItems: "center" }}>
-          <span className="text-[12px] font-semibold text-black font-mono">
+          <span className="text-[12px] font-bold text-black">
             {sss || ""}
           </span>
         </div>
 
         {/* Pag-IBIG value */}
         <div style={{ height: "26px", display: "flex", alignItems: "center" }}>
-          <span className="text-[12px] font-semibold text-black font-mono">
+          <span className="text-[12px] font-bold text-black">
             {pagibig || ""}
           </span>
         </div>
 
         {/* TIN value */}
         <div style={{ height: "28px", display: "flex", alignItems: "center" }}>
-          <span className="text-[12px] font-semibold text-black font-mono">
+          <span className="text-[12px] font-bold text-black">
             {tin || ""}
           </span>
         </div>
@@ -66,7 +66,7 @@ export default function IdBack({ contactPerson, contactNumber, qrCodeFile, philh
 
       {/* Contact Info */}
       <div
-        className="absolute text-center font-semibold text-black w-[75%]"
+        className="absolute text-center font-bold text-black w-[75%]"
         style={{
           top: "320px",
           left: "50%",
@@ -75,7 +75,7 @@ export default function IdBack({ contactPerson, contactNumber, qrCodeFile, philh
         }}
       >
         {contactNumber}
-        <div className="text-[16px] font-medium">
+        <div className="text-[16px] font-bold">
           {contactPerson}
         </div>
       </div>

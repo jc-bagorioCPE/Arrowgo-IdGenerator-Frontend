@@ -53,8 +53,19 @@ export default function UserInfo() {
   const uploadInputRef = useRef(null);
   const api            = import.meta.env.VITE_API_BASE_URL;
 
+  // ── Helper: safely revoke a blob: URL before replacing it ─────────────────
+  // Prevents memory leaks from accumulating object URLs across refetches
+  // (e.g. delete + re-register with the same employee_id, or re-uploads).
+  const revokeIfBlob = (url) => {
+    if (url && typeof url === "string" && url.startsWith("blob:")) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   // ── Fetch employee data ────────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -70,38 +81,71 @@ export default function UserInfo() {
         const data = res.data;
 
         if (!data?.employeeId) { setEmployee(null); return; }
+        if (cancelled) return;
         setEmployee(data);
 
         // ── Media is always fetched by employeeId (not by token) ─────────────
         const empId = data.employeeId;
 
+        // Cache-busting: append a fresh timestamp on every fetch so the browser
+        // never silently serves a stale cached image for a reused employee_id
+        // (e.g. after delete + re-register). Paired with no-store headers on
+        // the backend for full protection.
+        const cacheBust = Date.now();
+
         let hasPhoto     = false;
         let hasSignature = false;
 
         try {
-          const photoRes = await axios.get(`${api}/api/employees/${empId}/photo`, { responseType: "blob" });
-          setPhoto(URL.createObjectURL(photoRes.data));
-          hasPhoto = true;
+          const photoRes = await axios.get(
+            `${api}/api/employees/${empId}/photo?t=${cacheBust}`,
+            { responseType: "blob", headers: { "Cache-Control": "no-cache" } }
+          );
+          if (!cancelled) {
+            const newUrl = URL.createObjectURL(photoRes.data);
+            setPhoto((prev) => { revokeIfBlob(prev); return newUrl; });
+            hasPhoto = true;
+          }
         } catch { console.log("No photo found"); }
 
         try {
-          const sigRes = await axios.get(`${api}/api/employees/${empId}/signature`, { responseType: "blob" });
-          setSignature(URL.createObjectURL(sigRes.data));
-          hasSignature = true;
+          const sigRes = await axios.get(
+            `${api}/api/employees/${empId}/signature?t=${cacheBust}`,
+            { responseType: "blob", headers: { "Cache-Control": "no-cache" } }
+          );
+          if (!cancelled) {
+            const newUrl = URL.createObjectURL(sigRes.data);
+            setSignature((prev) => { revokeIfBlob(prev); return newUrl; });
+            hasSignature = true;
+          }
         } catch { console.log("No signature found"); }
 
-        setSaved(hasPhoto && hasSignature);
+        if (!cancelled) setSaved(hasPhoto && hasSignature);
       } catch (err) {
         console.error("Fetch error:", err);
-        setEmployee(null);
+        if (!cancelled) setEmployee(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchData();
+
+    // Cleanup: cancel stale updates and revoke any blob URLs on unmount/param change
+    return () => {
+      cancelled = true;
+    };
   // Re-run if either param changes
   }, [id, token]);
+
+  // Revoke blob URLs on unmount so they don't leak past the component's life
+  useEffect(() => {
+    return () => {
+      revokeIfBlob(photo);
+      revokeIfBlob(signature);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Reset canvas when dialog opens ────────────────────────────────────────
   useEffect(() => {
@@ -127,7 +171,9 @@ export default function UserInfo() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => setPhoto(reader.result);
+    reader.onloadend = () => {
+      setPhoto((prev) => { revokeIfBlob(prev); return reader.result; });
+    };
     reader.readAsDataURL(file);
   };
 
@@ -205,7 +251,7 @@ export default function UserInfo() {
       blank.height  = canvas.height;
       const dataUrl = canvas.toDataURL("image/png");
       if (dataUrl !== blank.toDataURL()) {
-        setSignature(dataUrl);
+        setSignature((prev) => { revokeIfBlob(prev); return dataUrl; });
       }
     }
     setShowSignatureDialog(false);

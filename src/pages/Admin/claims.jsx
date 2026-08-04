@@ -100,13 +100,15 @@ export default function ClaimPage() {
   const [updatingId, setUpdatingId] = useState(null);
 
   /* ================================
-     Load Employees
+     Load only "done" employees
   ================================= */
   const loadEmployees = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
-      const res = await api.get("/api/employees");
+
+      // ✅ Only fetch employees with status = "done"
+      const res = await api.get("/api/employees/done");
       const formatted = res.data.map((emp) => ({
         ...emp,
         current_status: emp.current_status || "not_claimed",
@@ -302,7 +304,7 @@ export default function ClaimPage() {
               Claim Management
             </h1>
             <p className="text-xs text-slate-500 dark:text-zinc-500 mt-0.5">
-              Track and manage employee claim statuses across your organization.
+              Track and manage ID claim statuses for employees with completed IDs.
             </p>
           </div>
         </div>
@@ -332,7 +334,7 @@ export default function ClaimPage() {
       {!loading && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <StatCard
-            label="Total Employees"
+            label="Total ID Done"
             value={total}
             icon={Users}
             colorClass="bg-indigo-100 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"
@@ -364,11 +366,11 @@ export default function ClaimPage() {
             </div>
             <div>
               <h2 className="text-base font-semibold text-slate-800 dark:text-white leading-tight">
-                Employee Records
+                Completed ID Records
               </h2>
               {!loading && (
                 <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">
-                  {total} employee{total !== 1 ? "s" : ""} found
+                  {total} employee{total !== 1 ? "s" : ""} with completed IDs
                 </p>
               )}
             </div>
@@ -394,15 +396,18 @@ export default function ClaimPage() {
                   Loading Employees
                 </p>
                 <p className="text-xs text-slate-500 dark:text-zinc-500 mt-1">
-                  Fetching employee data…
+                  Fetching completed ID records…
                 </p>
               </div>
             </div>
           ) : employees.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-[420px] gap-3">
-              <Users className="h-10 w-10 text-slate-300 dark:text-zinc-700" />
+              <CheckCircle2 className="h-10 w-10 text-slate-300 dark:text-zinc-700" />
               <p className="text-sm font-medium text-slate-500 dark:text-zinc-500">
-                No employees found
+                No completed IDs found
+              </p>
+              <p className="text-xs text-slate-400 dark:text-zinc-600">
+                Employees will appear here once their ID status is marked as done
               </p>
               <Button
                 variant="ghost"

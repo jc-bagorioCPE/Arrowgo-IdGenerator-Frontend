@@ -18,8 +18,6 @@ export const performLogout = async () => {
   const token = localStorage.getItem("token");
   if (token) {
     try {
-      // Fire-and-forget is intentional here: we don't want a failed API call
-      // to block the user from being logged out locally.
       await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`,
         {},
@@ -33,13 +31,18 @@ export const performLogout = async () => {
   window.location.href = "/";
 };
 
-// ── Auto-logout on 401 (disabled account or expired token) ───────────────────
+// ── Auto-logout on 401 — but NEVER for the login endpoint itself ──────────────
+// Wrong password returns 401 legitimately; redirecting there would close the modal.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    const isLoginRequest = error.config?.url?.includes("/api/auth/login");
+
+    if (error.response?.status === 401 && !isLoginRequest) {
+      // Only auto-logout for expired/invalid tokens on protected routes
       await performLogout();
     }
+
     return Promise.reject(error);
   }
 );

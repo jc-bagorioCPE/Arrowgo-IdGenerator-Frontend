@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import api from "../../lib/api";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -11,7 +11,7 @@ import IDBack from "../../components/IDBack";
 import ID_Form_Front from "../../components/ID_Form_Front";
 import ID_Form_Back from "../../components/ID_Form_Back";
 
-import TemplateFront from "../../assets/NewIDFront1.png";
+import TemplateFront from "../../assets/NEWF.png";
 import TemplateBack from "../../assets/NewIDBack.png";
 // JSZip & file-saver no longer needed — removed
 import {
@@ -32,6 +32,30 @@ const LOCATIONS = [
   ["TEMPO-ALICEBU", "TEMPO-ALICEBU"],
   ["TEMPO-ALIDAVAO", "TEMPO-ALIDAVAO"],
 ];
+
+// ── Branch → printed address, shown under the logo on the ID front ─────────
+// Keyed the same way LOCATIONS/employee_id prefixes are, so it auto-resolves
+// from whatever employee is selected (or whatever ID the user types/edits).
+const BRANCH_ADDRESSES = {
+  "ALIMDC": "11M Villarica Road, Brgy. Patubig Marilao Bulacan",
+  "ALITAG": "Arrowgo-Logistics Inc. Corporate Office, 8001 WH Mabato Rd. St. Ibayo, Tipas, Taguig City",
+  "ALIPAL": "Green Valley Street, San Jose, Puerto Princesa City Palawan",
+  "TEMPO-ALICEBU": "L. Jayme St. Maguikay, Mandaue City, Cebu",
+  "TEMPO-ALIDAVAO": "Bldg 3 Door 7 New Bypass Road Mamay Road Brgy Alfonso Angliongto Sr Buhangin District Davao City",
+};
+
+// Longest keys first so "TEMPO-ALICEBU" wins over a looser partial match
+// before a shorter key like "ALIMDC" ever gets the chance to.
+const BRANCH_KEYS_BY_LENGTH = Object.keys(BRANCH_ADDRESSES).sort(
+  (a, b) => b.length - a.length
+);
+
+function resolveBranchAddress(employeeId) {
+  if (!employeeId) return "";
+  const upper = employeeId.toUpperCase();
+  const key = BRANCH_KEYS_BY_LENGTH.find((k) => upper.includes(k));
+  return key ? BRANCH_ADDRESSES[key] : "";
+}
 
 // CR80 standard ID card: 3.375" × 2.125" landscape
 const CR80_W = 3.375;
@@ -65,6 +89,14 @@ export default function IdCreator() {
 
   // mobile panel toggle: "list" | "editor"
   const [mobilePanel, setMobilePanel] = useState("list");
+
+  // Auto-resolves any time employeeId changes — selecting an employee from
+  // the pending list, or editing the ID field by hand, both update the
+  // address shown under the logo with no extra plumbing.
+  const branchAddress = useMemo(
+    () => resolveBranchAddress(employeeId),
+    [employeeId]
+  );
 
   // ── fetch ──────────────────────────────────────────────────────────────────
   const fetchPendingEmployees = async () => {
@@ -379,6 +411,7 @@ export default function IdCreator() {
                             employeeName={employeeName} position={position} employeeId={employeeId}
                             signatureDraw={signature} signatureUpload={signature} uploadSize={signature}
                             photo={photo}
+                            branchAddress={branchAddress}
                           />
                         ) : (
                           <IDBack
@@ -446,6 +479,17 @@ export default function IdCreator() {
                         pagibig={pagibig}
                         tin={tin}
                       />
+                    )}
+
+                    {!showBack && (
+                      <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/50 mb-1">
+                          Branch Address (auto)
+                        </p>
+                        <p className="text-[11px] text-foreground leading-snug">
+                          {branchAddress || "No matching branch found in Employee ID"}
+                        </p>
+                      </div>
                     )}
 
                     {/* Download button — now outputs PDF */}

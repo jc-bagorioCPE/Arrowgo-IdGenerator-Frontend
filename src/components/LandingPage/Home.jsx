@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import {
@@ -13,6 +13,16 @@ import VerifyEmployeeModal from "../../pages/Public/VerifyEmployee";
 export default function Home() {
   const [showLogin, setShowLogin] = useState(false);
   const [showVerify, setShowVerify] = useState(false);
+  const location = useLocation();
+
+  // ── Auto-open verify modal when navigated back with the flag ──────────────
+  useEffect(() => {
+    if (location.state?.openVerifyModal) {
+      setShowVerify(true);
+      // Clear the state so a page refresh doesn't re-open it
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const floatingAnimation = {
     y: [0, -20, 0],
@@ -25,7 +35,7 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden ">
-      {/* BACKGROUND CAROUSEL - Uncomment when using */}
+      {/* BACKGROUND CAROUSEL */}
       <BgCarousel />
 
       {/* Animated Background Grid */}
@@ -151,7 +161,6 @@ export default function Home() {
               </span>
             </Button>
           </motion.div>
-
         </motion.div>
 
         {/* Scroll Indicator */}
@@ -172,13 +181,12 @@ export default function Home() {
         </motion.div>
       </div>
 
-      {/* MODAL */}
+      {/* MODALS */}
       <VerifyEmployeeModal
         open={showVerify}
         onOpenChange={setShowVerify}
       />
 
-      {/* CENTERED LOGIN MODAL */}
       <AdminLogin
         open={showLogin}
         onOpenChange={setShowLogin}

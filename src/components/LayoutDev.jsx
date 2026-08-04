@@ -192,7 +192,7 @@ function SidebarContent({ user, onSignOut, isSigningOut, onHelp, onSettings, clo
       <Separator />
 
       {/* Nav */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="px-3 pt-3 pb-2 space-y-4">
           <div>
             <p className="mb-1.5 px-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">

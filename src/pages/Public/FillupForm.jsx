@@ -47,15 +47,10 @@ export default function RegisterEmployee() {
   const [loading,            setLoading]            = useState(false);
   const [tokenExpiryWarning, setTokenExpiryWarning] = useState(false);
   const [isEmployeeIdLocked, setIsEmployeeIdLocked] = useState(false);
-  // ── NEW: stores the permanent qr_token returned after save ────────────────
   const [qrToken,            setQrToken]            = useState(null);
 
   const api = import.meta.env.VITE_API_BASE_URL;
   const url = import.meta.env.VITE_FRONTEND_BASE_URL;
-
-  // ── Title Case helper ──────────────────────────────────────────────────────
-  const toTitleCase = (str) =>
-    str.replace(/\b\w/g, (char) => char.toUpperCase());
 
   // ── Load data from registration token on mount ─────────────────────────────
   useEffect(() => {
@@ -68,13 +63,13 @@ export default function RegisterEmployee() {
           setForm((prev) => ({
             ...prev,
             employeeId:    emp.employeeId    || "",
-            employeeName:  toTitleCase(emp.employeeName  || ""),
-            position:      toTitleCase(emp.position      || ""),
+            employeeName:  emp.employeeName  || "",
+            position:      emp.position      || "",
             sss:           emp.sss           || "",
             philhealth:    emp.philhealth    || "",
             pagibig:       emp.pagibig       || "",
             tin:           emp.tin           || "",
-            contactPerson: toTitleCase(emp.contactPerson || ""),
+            contactPerson: emp.contactPerson || "",
             contactNumber: (emp.contactNumber || "").replace(/\s+/g, ""),
           }));
           if (emp.employeeId) setIsEmployeeIdLocked(true);
@@ -108,7 +103,8 @@ export default function RegisterEmployee() {
             console.log("❌ Token expired");
             sessionStorage.removeItem("registrationToken");
             alert("Your session has expired. Please verify again.");
-            navigate("/verify");
+            // ✅ Go home and auto-open the verify modal
+            navigate("/", { state: { openVerifyModal: true } });
           }
         } catch (error) {
           console.error("Token validation error:", error);
@@ -118,17 +114,24 @@ export default function RegisterEmployee() {
     return () => clearInterval(checkTokenExpiry);
   }, [navigate]);
 
+  // ── Register Another: clear token, go home and auto-open verify modal ──────
+  const handleRegisterAnother = () => {
+    sessionStorage.removeItem("registrationToken");
+    // ✅ Navigate to home with the flag to auto-open the verify modal
+    navigate("/", { state: { openVerifyModal: true } });
+  };
+
   // ── Field config ───────────────────────────────────────────────────────────
   const fieldConfig = {
-    employeeName:  { placeholder: "Enter full employee name",         icon: User,       label: "Employee Name",  color: "blue",   format: "Letters, spaces, and . ' - allowed",  maxLength: 100 },
-    employeeId:    { placeholder: "Ex: EMP-001",                      icon: FileText,   label: "Employee ID",    color: "purple", format: "Format: XXXXXX-####-###",             maxLength: 15  },
-    position:      { placeholder: "Ex: Driver, Helper, Coordinator",  icon: Briefcase,  label: "Position",       color: "green",  format: "Letters, spaces, and . ' - allowed",  maxLength: 50  },
-    philhealth:    { placeholder: "##-#########-#",                   icon: Heart,      label: "PhilHealth",     color: "red",    format: "Format: 12-345678901-2 (14 digits)",  maxLength: 14  },
-    sss:           { placeholder: "##-#######-#",                     icon: CreditCard, label: "SSS",            color: "yellow", format: "Format: 12-3456789-0 (10 digits)",    maxLength: 12  },
-    pagibig:       { placeholder: "####-####-####",                   icon: Home,       label: "Pag-IBIG",       color: "orange", format: "Format: 1234-5678-9012 (12 digits)",  maxLength: 14  },
-    tin:           { placeholder: "###-###-###-###",                  icon: FileText,   label: "TIN",            color: "indigo", format: "Format: 123-456-789-000 (12 digits)", maxLength: 15  },
-    contactPerson: { placeholder: "Emergency contact name",            icon: Users,      label: "Contact Person", color: "pink",   format: "Letters, spaces, and . ' - allowed",  maxLength: 100 },
-    contactNumber: { placeholder: "09#########",                      icon: Phone,      label: "Contact Number", color: "teal",   format: "Format: 09XXXXXXXXX (11 digits)",     maxLength: 11  },
+    employeeName:  { placeholder: "Enter full employee name",         icon: User,       label: "Employee Name",  color: "blue",   format: "Any characters allowed",             maxLength: 100 },
+    employeeId:    { placeholder: "Ex: EMP-001",                      icon: FileText,   label: "Employee ID",    color: "purple", format: "Format: XXXXXX-####-###",            maxLength: 15  },
+    position:      { placeholder: "Ex: Driver, Helper, Coordinator",  icon: Briefcase,  label: "Position",       color: "green",  format: "Any characters allowed",             maxLength: 50  },
+    philhealth:    { placeholder: "##-#########-#",                   icon: Heart,      label: "PhilHealth",     color: "red",    format: "Format: 12-345678901-2 (14 digits)", maxLength: 14  },
+    sss:           { placeholder: "##-#######-#",                     icon: CreditCard, label: "SSS",            color: "yellow", format: "Format: 12-3456789-0 (10 digits)",   maxLength: 12  },
+    pagibig:       { placeholder: "####-####-####",                   icon: Home,       label: "Pag-IBIG",       color: "orange", format: "Format: 1234-5678-9012 (12 digits)", maxLength: 14  },
+    tin:           { placeholder: "###-###-###-###",                  icon: FileText,   label: "TIN",            color: "indigo", format: "Format: 123-456-789-000 (12 digits)",maxLength: 15  },
+    contactPerson: { placeholder: "Emergency contact name",           icon: Users,      label: "Contact Person", color: "pink",   format: "Any characters allowed",             maxLength: 100 },
+    contactNumber: { placeholder: "09#########",                      icon: Phone,      label: "Contact Number", color: "teal",   format: "Format: 09XXXXXXXXX (11 digits)",    maxLength: 11  },
   };
 
   // ── Formatters ─────────────────────────────────────────────────────────────
@@ -163,15 +166,6 @@ export default function RegisterEmployee() {
   // ── Validation ─────────────────────────────────────────────────────────────
   const validateField = (name, value) => {
     switch (name) {
-      case "employeeName":
-      case "contactPerson":
-        if (!/^[A-Za-z.\s'-]+$/.test(value) && value !== "")
-          return "Only letters, spaces, and . ' - are allowed";
-        break;
-      case "position":
-        if (!/^[A-Za-z.\s]+$/.test(value) && value !== "")
-          return "Only letters, spaces, and dots allowed";
-        break;
       case "sss":
         if (value.replace(/\D/g, "").length !== 10)
           return "SSS must be 10 digits (XX-XXXXXXX-X)";
@@ -198,31 +192,23 @@ export default function RegisterEmployee() {
     return "";
   };
 
-  // ── handleChange with title case ───────────────────────────────────────────
+  // ── handleChange ───────────────────────────────────────────────────────────
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === "employeeId" && isEmployeeIdLocked) return;
 
     let formattedValue = value;
     switch (name) {
-      case "employeeName":
-      case "contactPerson":
-        formattedValue = toTitleCase(value.replace(/[^A-Za-z.\s'-]/g, ""));
-        break;
-      case "position":
-        formattedValue = toTitleCase(value.replace(/[^A-Za-z.\s]/g, ""));
-        break;
-      case "philhealth":     formattedValue = formatPhilHealth(value);     break;
-      case "sss":            formattedValue = formatSSS(value);            break;
-      case "pagibig":        formattedValue = formatPagibig(value);        break;
-      case "tin":            formattedValue = formatTIN(value);            break;
-      case "contactNumber":  formattedValue = formatContactNumber(value);  break;
+      case "philhealth":    formattedValue = formatPhilHealth(value);    break;
+      case "sss":           formattedValue = formatSSS(value);           break;
+      case "pagibig":       formattedValue = formatPagibig(value);       break;
+      case "tin":           formattedValue = formatTIN(value);           break;
+      case "contactNumber": formattedValue = formatContactNumber(value); break;
       default: break;
     }
 
     setForm((prev) => ({ ...prev, [name]: formattedValue }));
-    const error = validateField(name, formattedValue);
-    setErrors((prev) => ({ ...prev, [name]: error }));
+    setErrors((prev) => ({ ...prev, [name]: validateField(name, formattedValue) }));
   };
 
   const validateForm = () => {
@@ -260,9 +246,6 @@ export default function RegisterEmployee() {
     if (!validateForm()) return;
     setLoading(true);
     try {
-      // The hidden QR canvas still encodes a placeholder URL using employeeId.
-      // The server will generate the real qr_token and return it.
-      // After save, the success-screen QR will re-render with the token URL.
       const qrBase64 = await getQRBase64();
       if (!qrBase64) {
         alert("Failed to capture QR. Make sure the canvas is rendered.");
@@ -280,8 +263,6 @@ export default function RegisterEmployee() {
       if (!res.ok) throw new Error(data.error || "Server error");
 
       sessionStorage.removeItem("registrationToken");
-
-      // ── NEW: capture the permanent qr_token from the server response ───────
       setQrToken(data.qr_token);
       setEmployee(data);
     } catch (err) {
@@ -309,13 +290,10 @@ export default function RegisterEmployee() {
   const filledFields = Object.values(form).filter((v) => v.trim() !== "").length;
   const progress     = (filledFields / Object.keys(form).length) * 100;
 
-  // ── Hidden pre-save QR still uses employeeId (token doesn't exist yet) ─────
   const hiddenQrValue = form.employeeId
     ? `${url}/employee/${form.employeeId.toUpperCase()}`
     : `${url}/employee/temp`;
 
-  // ── NEW: success QR encodes the permanent token-based URL ──────────────────
-  // Falls back to employee ID route if server didn't return a token (safety net)
   const successQrValue = qrToken
     ? `${url}/employee/token/${qrToken}`
     : employee
@@ -497,7 +475,7 @@ export default function RegisterEmployee() {
                     })}
                   </div>
 
-                  {/* Hidden QR canvas — uses employeeId placeholder before save */}
+                  {/* Hidden QR canvas */}
                   <div style={{ position: "absolute", left: -9999, top: 0 }}>
                     <div ref={qrWrapperRef}>
                       <QRCodeCanvas
@@ -583,7 +561,6 @@ export default function RegisterEmployee() {
                   </CardHeader>
                   <CardContent className="p-8 bg-white">
                     <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-2xl inline-block">
-                      {/* ── NEW: QR now encodes the permanent token URL ─────── */}
                       {successQrValue && (
                         <QRCodeCanvas
                           id="qr-gen-visible"
@@ -593,7 +570,6 @@ export default function RegisterEmployee() {
                         />
                       )}
                     </div>
-                    {/* ── Show the token URL for transparency ────────────────── */}
                     {qrToken && (
                       <p className="mt-3 text-xs text-gray-400 font-mono break-all">
                         {successQrValue}
@@ -620,7 +596,7 @@ export default function RegisterEmployee() {
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Button
-                    onClick={() => window.location.reload()}
+                    onClick={handleRegisterAnother}
                     variant="outline"
                     className="px-8 py-6 text-lg font-bold border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 rounded-xl flex items-center gap-3"
                   >
