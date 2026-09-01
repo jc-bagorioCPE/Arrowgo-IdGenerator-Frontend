@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../lib/api"
-
 import {
   Table,
   TableBody,
@@ -9,13 +8,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-
 import {
   Select,
   SelectContent,
@@ -23,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
 import {
   Search,
   RefreshCcw,
@@ -35,9 +31,12 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react"
+import ApplyQRModal from "../../components/QrModal" // adjust path to wherever you place the file
 
-const API_BASE = "http://localhost:5000"
+const API_BASE = import.meta.env.VITE_API_BASE_URL
 const PAGE_SIZE = 7
+
+const STATUS_OPTIONS = ["pending", "reviewing", "shortlisted", "rejected", "hired"]
 
 const statusColors = {
   pending:     "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/20",
@@ -54,6 +53,7 @@ export default function AdminApplications() {
   const [sortPosition, setSortPosition] = useState("none")
   const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState([])
+  const [updatingId, setUpdatingId] = useState(null) // tracks in-flight status change per row
 
   useEffect(() => {
     fetchApplications()
@@ -68,6 +68,29 @@ export default function AdminApplications() {
       console.error("Failed to fetch applications", err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  /* ===============================
+     STATUS UPDATE
+  =============================== */
+  const handleStatusChange = async (appId, newStatus) => {
+    const previous = applications
+    // Optimistic update — flip it immediately, roll back on failure
+    setApplications((prev) =>
+      prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a))
+    )
+    setUpdatingId(appId)
+    try {
+      await api.put(`${API_BASE}/api/recruitment/applications/${appId}/status`, {
+        status: newStatus,
+      })
+    } catch (err) {
+      console.error("Failed to update status", err)
+      setApplications(previous) // rollback
+      alert("Failed to update status. Please try again.")
+    } finally {
+      setUpdatingId(null)
     }
   }
 
@@ -96,7 +119,6 @@ export default function AdminApplications() {
      PAGINATION
   =============================== */
   const totalPages = Math.ceil(filteredData.length / PAGE_SIZE)
-
   const paginatedData = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE
     return filteredData.slice(start, start + PAGE_SIZE)
@@ -114,7 +136,6 @@ export default function AdminApplications() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
-
   const toggleAll = (checked) =>
     setSelectedIds(checked ? paginatedData.map((a) => a.id) : [])
 
@@ -124,7 +145,6 @@ export default function AdminApplications() {
   const exportSelected = () => {
     const rows = applications.filter((a) => selectedIds.includes(a.id))
     if (!rows.length) return
-
     const headers = ["Name", "Email", "Phone", "Position", "Status", "Date"]
     const csv = [
       headers.join(","),
@@ -134,7 +154,6 @@ export default function AdminApplications() {
           .map((v) => `"${v}"`).join(",")
       ),
     ].join("\n")
-
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
@@ -145,16 +164,25 @@ export default function AdminApplications() {
   }
 
   const handleViewResume = async (app) => {
+    // Open the tab synchronously, in direct response to the click —
+    // browsers block window.open() calls made after an await, so the
+    // blob URL gets assigned to this pre-opened tab once it's ready.
+    const newTab = window.open("", "_blank")
     try {
       const res = await api.get(
         `${API_BASE}/api/recruitment/applications/${app.id}/resume`,
         { responseType: "blob" }
       )
       const url = window.URL.createObjectURL(res.data)
-      window.open(url, "_blank")
+      if (newTab) {
+        newTab.location.href = url
+      } else {
+        window.open(url, "_blank") // fallback if even the blank tab got blocked
+      }
       setTimeout(() => URL.revokeObjectURL(url), 10000)
     } catch (err) {
       console.error(err)
+      if (newTab) newTab.close()
       alert("Failed to open resume")
     }
   }
@@ -220,7 +248,6 @@ export default function AdminApplications() {
   return (
     <div className="min-h-screen bg-white dark:bg-black transition-colors duration-300">
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-
         {/* ── Stat Cards ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map(({ label, value, icon: Icon, iconBg, borderColor, chipBg }) => (
@@ -259,8 +286,8 @@ export default function AdminApplications() {
                 </p>
               </div>
             </div>
-
             <div className="flex flex-wrap gap-2">
+              <ApplyQRModal />
               <Button
                 variant="outline"
                 size="sm"
@@ -270,7 +297,6 @@ export default function AdminApplications() {
                 <RefreshCcw className="h-4 w-4" />
                 <span className="hidden sm:inline">Refresh</span>
               </Button>
-
               <Button
                 size="sm"
                 disabled={!selectedIds.length}
@@ -282,7 +308,6 @@ export default function AdminApplications() {
               </Button>
             </div>
           </CardHeader>
-
           <CardContent className="space-y-4 pt-5 px-6 pb-6">
             {/* ── Search & Sort ── */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -295,7 +320,6 @@ export default function AdminApplications() {
                   className="pl-10 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-[#70B9A1] dark:focus:border-[#70B9A1] transition-colors"
                 />
               </div>
-
               <Select value={sortPosition} onValueChange={setSortPosition}>
                 <SelectTrigger className="w-full sm:w-56 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300">
                   <SelectValue placeholder="Sort by position" />
@@ -331,7 +355,6 @@ export default function AdminApplications() {
                       ))}
                     </TableRow>
                   </TableHeader>
-
                   <TableBody>
                     {paginatedData.length ? (
                       paginatedData.map((app) => (
@@ -346,7 +369,6 @@ export default function AdminApplications() {
                               className="border-slate-300 dark:border-zinc-600"
                             />
                           </TableCell>
-
                           <TableCell className="font-semibold text-slate-900 dark:text-white">
                             {app.name}
                           </TableCell>
@@ -359,15 +381,34 @@ export default function AdminApplications() {
                           <TableCell className="text-slate-700 dark:text-zinc-300">
                             {app.position}
                           </TableCell>
-
                           <TableCell>
-                            <Badge
-                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold border ${statusColors[app.status] || statusColors.pending}`}
+                            {/* Status dropdown — styled like the old Badge, but functional */}
+                            <Select
+                              value={app.status}
+                              onValueChange={(val) => handleStatusChange(app.id, val)}
+                              disabled={updatingId === app.id}
                             >
-                              {app.status}
-                            </Badge>
+                              <SelectTrigger
+                                className={`h-7 w-[135px] rounded-full px-2.5 text-xs font-semibold border capitalize ${statusColors[app.status] || statusColors.pending}`}
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  {updatingId === app.id && <Loader2 className="h-3 w-3 animate-spin" />}
+                                  <SelectValue />
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent className="bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-xl dark:shadow-black/50">
+                                {STATUS_OPTIONS.map((s) => (
+                                  <SelectItem
+                                    key={s}
+                                    value={s}
+                                    className="text-slate-700 dark:text-zinc-200 focus:bg-slate-100 dark:focus:bg-white/5 capitalize"
+                                  >
+                                    {s}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
-
                           <TableCell>
                             {app.resume ? (
                               <Button
@@ -414,7 +455,6 @@ export default function AdminApplications() {
                 <span className="font-semibold text-slate-900 dark:text-white">{filteredData.length}</span>
                 {" "}applications{search && " (filtered)"}
               </p>
-
               <div className="flex items-center gap-2">
                 <p className="text-sm text-slate-500 dark:text-zinc-500">
                   Page {page} of {totalPages || 1}

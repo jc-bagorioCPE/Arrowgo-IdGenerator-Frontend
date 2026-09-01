@@ -14,6 +14,7 @@ import RecruitmentPage from "./components/RecruitmentPage";
 import ApplicantsPage from "./pages/Admin/ApplicantPage";
 import DeveloperRoute from "./Routes/DeveloperRoute";
 import VerifyEmployee from "./pages/Public/VerifyEmployee";
+import ApplyForm from "./pages/public/ApplyForm"
 
 import RequireAdmin from "./components/ProtectedRoute";
 import RequireRegistrationToken from "./components/RequireRegistrationToken";
@@ -82,6 +83,7 @@ function App() {
         <Route path="/Documentation" element={<Documentation />} />
         <Route path="/Recruitment" element={<RecruitmentPage />} /> 
         <Route path ="/verify" element={<VerifyEmployee />} />
+        <Route path="/apply" element={<ApplyForm />} />
       </Routes>
     </div>
   );
